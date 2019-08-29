@@ -1,0 +1,547 @@
+/*Begining of Auto generated code by Atmel studio */
+#include <Arduino.h>
+#undef max
+#undef min
+/*End of auto generated code by Atmel studio */
+
+#include <Wire.h>
+#include "Adafruit_VL53L0X.h"
+#include <BMP280.h>
+#include <MLX90393.h>
+#include <Si7006.h>
+#include <VEML6040.h>
+#include <SPU0414HR5H_SB.h>
+#include "SparkFunLSM6DS3.h"
+#include <RGB_LED.h>
+//Beginning of Auto generated function prototypes by Atmel Studio
+//End of Auto generated function prototypes by Atmel Studio
+#include <iostream>
+#undef max
+#undef min
+#include "Matrix.h"
+
+using namespace std;
+
+
+
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();                    //Distance Sensor (VL53L0X)
+BMP280  PressureSensor;                                       //Pressure Sensor (BMP280)
+MLX90393 HallSensor;                                          //Magnetic Sensor (MLX90393)
+Si7006 TempandHumSensor;                                      //Temperature and Humidity Sensor (Si7006)
+VEML6040 OpticalSensor;                                       //Optical Sensor (VEML6040)
+SPU0414HR5H_SB SoundSensor;                                   //Sound Sensor (SPU0414HR5H_SB)
+LSM6DS3 IMUSensor;                                            //IMU Sensor (LSM6DS3US). Address: 0x6B
+RGB_LED RGB;                                                  //RGB LED
+
+//#define Kp 112.0f
+//#define Ki 0.085f
+//#define halfT 0.005f
+double cuQua[4] = {1.00,0.00,0.00,0.00}; //The value of the initial quaternion
+//float x_mag,y_mag,z_mag;
+double q0, q1, q2, q3;
+//float exint=0,eyint=0,ezint=0;
+//double delta=0.01;
+double co[4][4]={0.01,0.00,0.00,0.00,0.00,0.01,0.00,0.00,0.00,0.00,0.01,0.00,0.00,0.00,0.00,0.01};
+double roll;
+double pitch;
+double norm;
+float SamplePeriod = 0.002;
+double Qpre=0.0005;
+void setup() {
+	Serial1.begin(9600);
+
+	// wait until serial port opens for native USB devices
+	while (! Serial) {
+		delay(1);
+	}
+
+	// Detect the Distance sensor (VL53L0X)
+	if (!lox.begin()) {
+		Serial1.println("Error: VL53L0X not detected");
+		while(1);
+	}
+
+	// Detect the Pressure Sensor (BMP280)
+	if(!PressureSensor.BMP280_scan()){
+		Serial1.println("Error: BMP280 Sensor not detected");
+		while(1){}
+	}
+
+	// Configure the Magnetic Sensor (MLX90393)
+	uint8_t status = HallSensor.MLX90393_begin(0,0);
+
+	// Detect the Temperature and Humidity Sensor (Si7006)
+	if(!TempandHumSensor.Si7006_scan()){
+		Serial1.println("Error: Si7006 Sensor not detected");
+		while(1){}
+	}
+
+	// Configure the Temperature and Humidity Sensor (Si7006)
+	TempandHumSensor.Si7006_configuration(Si7006_MEASURE_REL_HUMIDITY_NO_MASTER_MODE);
+	TempandHumSensor.Si7006_configuration(Si7006_MEASURE_TEMPERATURE_NO_MASTER_MODE);
+	delay(1500);
+
+	// Detect the Optical Sensor (VEML6040)
+	if(!OpticalSensor.VEML6040_scan()){
+		Serial.println("Error: VEML6040 Sensor not detected");
+		while(1){}
+	}
+
+	//Configure the Optical Sensor (VEML6040)
+	OpticalSensor.VEML6040_configuration(VEML6040_AUTO_MODE);
+	OpticalSensor.VEML6040_configuration(VEML6040_SD_DISABLE);
+	OpticalSensor.VEML6040_configuration(VEML6040_IT_160);
+	delay(1500);
+
+	//Configure the IMU Sensor (LSM6DS3US)
+	Serial1.println("Processor came out of reset.\n");
+	if( IMUSensor.begin() != 0 )
+	{
+		Serial1.println("Error: LSM6DS3 not detected");
+	}
+	else
+	{
+		//Serial1.println("IMU Sensor started");
+	}
+
+	//Cycle LED colors
+	RGB.RGB_LED_CYCLE(cr,cg,cb,1000);
+	
+
+	
+}
+
+void loop()
+ {
+	double gx, gy, gz, ax, ay, az;
+	ax=IMUSensor.readFloatAccelX();
+	ay=IMUSensor.readFloatAccelY();
+	az=IMUSensor.readFloatAccelZ();
+	gx=IMUSensor.readFloatGyroX();
+	gy=IMUSensor.readFloatGyroY();
+	gz=IMUSensor.readFloatGyroZ();
+    ax*=9.8;
+	ay*=9.8;
+	az*=9.8;
+	
+
+    /* @This is the first formula for the quaternion differential equation for angular velocity
+     * @Function: updates the quaternion value
+     * @Parameter: x,y,z are angular velocity at the current moment
+     */
+    
+	double delteTheta[4][4]={};	
+	float temp0 = 0;
+    
+	
+	//Get Angle increment
+	gx *= SamplePeriod;
+	gy *= SamplePeriod;
+	gz *= SamplePeriod;
+
+	temp0 = 1.0;
+
+	gx *= 0.50;
+	gy *= 0.50;
+	gz *= 0.50;
+
+	delteTheta[0][0] = temp0;
+	delteTheta[0][1] = gx;
+	delteTheta[0][2] = gy;
+	delteTheta[0][3] = gz;
+
+	delteTheta[1][0] = -1.00 * gx;
+	delteTheta[1][1] = temp0;
+	delteTheta[1][2] = -1.00 * gz;
+	delteTheta[1][3] = gy;
+
+	delteTheta[2][0] = -1.00 * gy;
+	delteTheta[2][1] = gz;
+	delteTheta[2][2] = temp0;
+	delteTheta[2][3] = -1.00 * gx;
+
+	delteTheta[3][0] = -1.00 * gz;
+	delteTheta[3][1] = -1.00 * gy;
+	delteTheta[3][2] = gx;
+	delteTheta[3][3] = temp0;
+	
+	q0=cuQua[0];
+	q1=cuQua[1];
+	q2=cuQua[2];
+	q3=cuQua[3];
+	for (int i = 0; i < 4; i++) 
+	{
+		cuQua[i] = delteTheta[i][0] * q0 + delteTheta[i][1] * q1
+				+ delteTheta[i][2] * q2 + delteTheta[i][3] * q3;
+	}	
+	
+	double sumsq;	
+	
+	sumsq=sqrt(cuQua[0] * cuQua[0] + cuQua[1] * cuQua[1] + cuQua[2] * cuQua[2]+ cuQua[3] * cuQua[3]);
+	
+	for (int i = 0; i < 4; i++) {
+		cuQua[i] = cuQua[i] / sumsq;
+	}
+	
+	//Serial1.print(cuQua[0]);
+	
+	/**********The second formula predicts covirance**********/
+	double ap[4][4]={};
+	
+	// A multiply with P（k-1|k-1）which is co
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			for (int k = 0; k < 4; k++)
+			{
+				ap[i][j] += delteTheta[i][k] * co[k][j];
+			}
+		}
+	}
+	
+	
+	
+	
+	double arr[16]={};
+	
+	
+	for (int i=0;i<4;++i)
+	{
+		for (int j=0;j<4;++j)
+		{
+			arr[i*4+j]=delteTheta[i][j];
+		}
+	}
+	
+	CMatrix ma(4,4,arr);
+	CMatrix mb=ma.Transpose();
+	//I'm going to take the transpose of A one-dimensional array and replace it with A matrix MC which in this case is A transpose
+	float mmc[4][4];
+	mmc[0][0]=mb[0];
+	mmc[0][1]=mb[1];
+	mmc[0][2]=mb[2];
+	mmc[0][3]=mb[3];
+	mmc[1][0]=mb[4];
+	mmc[1][1]=mb[5];
+	mmc[1][2]=mb[6];
+	mmc[1][3]=mb[7];
+	mmc[2][0]=mb[8];
+	mmc[2][1]=mb[9];
+	mmc[2][2]=mb[10];
+	mmc[2][3]=mb[11];
+	mmc[3][0]=mb[12];
+	mmc[3][1]=mb[13];
+	mmc[3][2]=mb[14];
+	mmc[3][3]=mb[15];
+
+/********************AP times with the transposed matrix of A**********************/
+    //Serial1.print(ap[0][1]);
+	double ppre[4][4]={}; 
+		//the multiplication of matrices
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			for (int k = 0; k < 4; k++)
+			{
+				ppre[i][j] += ap[i][k] * mmc[k][j]; //mc is the transposed matrix of A
+			}
+		}
+	}
+	
+	ppre[0][0]+=Qpre;
+	ppre[1][1]+=Qpre;
+	ppre[2][2]+=Qpre;
+	ppre[3][3]+=Qpre;
+	
+/****************The third equation , calculation of Kalman gain**************/
+
+/***************calculate the the front part of the polynomial****************/
+	q0=cuQua[0];
+	q1=cuQua[1];
+	q2=cuQua[2];
+	q3=cuQua[3];
+	float gg=9.8;
+	double h[3][4]={};
+	//h[0][0]=2*gg*q2;
+	//h[0][1]=2*gg*q3;
+	//h[0][2]=2*gg*q0;
+	//h[0][3]=2*gg*q1;
+	//h[1][0]=-1.0f*2*gg*q1;
+	//h[1][1]=-1.0f*2*gg*q0;
+	//h[1][2]=2*gg*q3;
+	//h[1][3]=2*gg*q2;
+	//h[2][0]=2*gg*q0;
+	//h[2][1]=-1.0f*2*gg*q1;
+	//h[2][2]=-1.0f*2*gg*q2;
+	//h[2][3]=2*gg*q3;
+	h[0][0]=-1.0f*2*gg*q2;
+	h[0][1]=2*gg*q3;
+	h[0][2]=-1.0f*2*gg*q0;
+	h[0][3]=2*gg*q1;
+	h[1][0]=2*gg*q1;
+	h[1][1]=2*gg*q0;
+	h[1][2]=2*gg*q3;
+	h[1][3]=2*gg*q2;
+	h[2][0]=2*gg*q0;
+	h[2][1]=-1.0f*2*gg*q1;
+	h[2][2]=-1.0f*2*gg*q2;
+	h[2][3]=2*gg*q3;
+
+	
+//calculate the transposed matrix of h
+	double hrr[12]={};
+	for (int i=0;i<3;++i)
+	{
+		for (int j=0;j<4;++j)
+		{
+			hrr[i*4+j]=h[i][j];
+		}
+	}
+	
+	CMatrix mc(3,4,hrr);
+	CMatrix md=mc.Transpose();
+	//Replace the transposed one-dimensional sequence with a matrix
+	float ht[4][3];
+	ht[0][0]=md[0];
+	ht[0][1]=md[1];
+	ht[0][2]=md[2];
+	ht[1][0]=md[3];
+	ht[1][1]=md[4];
+	ht[1][2]=md[5];
+	ht[2][0]=md[6];
+	ht[2][1]=md[7];
+	ht[2][2]=md[8];	
+	ht[3][0]=md[9];
+	ht[3][1]=md[10];
+	ht[3][2]=md[11];
+	
+	
+
+    //P（k|k-1）times Ht
+	
+	double pht[4][3]={};
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 3; ++j)
+		{
+			for (int k = 0; k < 4; ++k)
+			{
+				pht[i][j] += ppre[i][k] * ht[k][j]; //ht is the transposed matrix of A
+			}
+		}
+	}
+		
+	//get the pht and it will be multiplied by hphtn later
+/****************The process of inverting*******************/
+
+//h times ppre
+	double hppre[3][4]={};
+	for (int i = 0; i < 3; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			for (int k = 0; k < 4; ++k)
+			{
+				hppre[i][j] += h[i][k] * ppre[k][j]; 
+			}
+		}
+	}
+//	hppre times ht
+    double hpht[3][3]={};
+    for (int i = 0; i < 3; ++i)
+    {
+	    for (int j = 0; j < 3; ++j)
+	    {
+		    for (int k = 0; k < 4; ++k)
+		    {
+			    hpht[i][j] += hppre[i][k] * ht[k][j]; 
+		    }
+	    }
+    }
+	
+//I'm adding the r matrix to hpht, essentially adding the diagonal to the measurement noise covariance
+    double r1=1.58;
+	double r2=1.58;
+	double r3=1.58;
+	
+	hpht[0][0]+=r1;
+	hpht[1][1]+=r2;
+	hpht[2][2]+=r3;
+
+/*************calculate the inverse of hpht**************/
+	
+	
+	double brr[9]={};
+	for (int i=0;i<3;++i)
+	{
+		for (int j=0;j<3;++j)
+		{
+			brr[i*3+j]=hpht[i][j];
+		}
+	}
+	
+    //#pragma optimize( "", off )
+	CMatrix me(3,3,brr);
+	me.InvertGaussJordan();	
+	
+	double hphtn[3][3]={};
+	
+	hphtn[0][0]=me[0];
+	hphtn[0][1]=me[1];
+	hphtn[0][2]=me[2];
+	hphtn[1][0]=me[3];
+	hphtn[1][1]=me[4];
+	hphtn[1][2]=me[5];
+	hphtn[2][0]=me[6];
+	hphtn[2][1]=me[7];
+	hphtn[2][2]=me[8];
+	
+	//Serial1.print(mf[0]);
+// multiply that pht by hphtn and thus get kg
+    double kg[4][3]={};
+    for (int i = 0; i < 4; ++i)
+    {
+	    for (int j = 0; j < 3; ++j)
+	    {
+		    for (int k = 0; k < 3; ++k)
+		    {
+			    kg[i][j] += pht[i][k] * hphtn[k][j];
+		    }
+	    }
+    }
+/****************The fourth equation***************/
+	//H*X(K|K-1)
+	
+	float hx[3]={};
+	for (int i = 0; i < 3; i++) {
+		hx[i] = h[i][0] * cuQua[0] + h[i][1] * cuQua[1]
+		+ h[i][2] * cuQua[2] + h[i][3] * cuQua[3];
+	}	
+	
+	float z[3][1]={};
+	z[0][0]=ax-hx[0];
+	z[1][0]=ay-hx[1];
+	z[2][0]=az-hx[2];
+	
+
+	double dk[4][1]={};
+    for (int i = 0; i < 4; ++i)
+    {
+	    for (int j = 0; j < 1; ++j)
+	    {
+		    for (int kk = 0; kk < 3; ++kk)
+		    {
+			    dk[i][j] += kg[i][kk] * z[kk][j];
+		    }
+	    }
+    }
+	
+	cuQua[0]+=dk[0][0];
+	cuQua[1]+=dk[1][0];
+	cuQua[2]+=dk[2][0];
+	cuQua[3]+=dk[3][0];
+	
+	sumsq=sqrt(cuQua[0] * cuQua[0] + cuQua[1] * cuQua[1] + cuQua[2] * cuQua[2]+ cuQua[3] * cuQua[3]);
+	//Serial1.print(sumsq);第一个对
+	for (int i = 0; i < 4; i++) {
+		cuQua[i] = cuQua[i] / sumsq;
+	}	
+	
+/************Update the covariance matrix for the fifth formula***************/
+
+    //firstly calculate kg*h
+	//Z(K)-H*X(K|K-1) use the z matrix to represent the minus
+	double dkgh[4][4]={};
+	
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			for (int kk = 0; kk < 3; ++kk)
+			{
+				dkgh[i][j] += kg[i][kk] * h[kk][j];
+			}
+		}
+	}
+	//calculate the 1-kgh
+	double fkh[4][4]={};
+	fkh[0][0]=1.0-dkgh[0][0];
+	fkh[0][1]=0.0-dkgh[0][1];
+	fkh[0][2]=0.0-dkgh[0][2];
+	fkh[0][3]=0.0-dkgh[0][3];
+	fkh[1][0]=0.0-dkgh[1][0];
+	fkh[1][1]=1.0-dkgh[1][1];
+	fkh[1][2]=0.0-dkgh[1][2];
+	fkh[1][3]=0.0-dkgh[1][3];
+	fkh[2][0]=0.0-dkgh[2][0];
+	fkh[2][1]=0.0-dkgh[2][1];	
+	fkh[2][2]=1.0-dkgh[2][2];
+	fkh[2][3]=0.0-dkgh[2][3];
+	fkh[3][0]=0.0-dkgh[3][0];
+	fkh[3][1]=0.0-dkgh[3][1];
+	fkh[3][2]=0.0-dkgh[3][2];
+	fkh[3][3]=1.0-dkgh[3][3];
+
+// multiply that times ppre to get pp
+
+
+    double fc[4][4]={};
+	for (int i = 0; i < 4; ++i)
+    {
+	    for (int j = 0; j < 4; ++j)
+	    {
+		    for (int k = 0; k < 4; ++k)
+		    {
+			    fc[i][j] += fkh[i][k] * ppre[k][j];
+		    }
+	    }
+    }
+	
+	for (int i = 0;i< 4 ; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			co[i][j]=fc[i][j];
+		}
+	}
+	
+
+    /*********formulas is to convert the quaternion into an euler Angle**********/
+
+	roll= atan2(2 * cuQua[2] * cuQua[3] + 2 * cuQua[0] * cuQua[1], -2 * cuQua[1] * cuQua[1] - 2 * cuQua[2]* cuQua[2] + 1)*57.2957795f;
+	pitch= asin(-2 * cuQua[1] * cuQua[3] + 2 * cuQua[0]* cuQua[2])*57.2957795f;
+	
+	//euler[0] = atan2(fr[0], fr[1]) * 180 / PI;
+	//euler[1] = asin(fr[2]) * 180 / PI;
+	//euler[2] = atan2(fr[3], fr[4]) * 180 / PI;
+	//Serial1.print(roll);
+	//Serial1.print(";");
+	
+	// 3d simulation
+    //Serial1.print("x");
+  //
+    //if(!(roll<0))
+		//Serial1.print("+");
+    //Serial1.print(roll);
+    //Serial1.print(";");
+//
+    //Serial1.print("y");
+  //
+    //if(!(pitch<0))
+		//Serial1.print("+");
+    //Serial1.print(pitch);
+    //Serial1.print(";");	
+	//real-time line chart
+    Serial1.print(roll);
+    Serial1.print(" , ");
+    Serial1.println(pitch);
+	//Serial1.print(" , ");
+	
+	
+	delay(100);
+	
+	
+	
+}
