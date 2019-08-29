@@ -1,0 +1,209 @@
+/*Begining of Auto generated code by Atmel studio */
+#include <Arduino.h>
+
+/*End of auto generated code by Atmel studio */
+# This code is based on Robert E.Mahony research group
+
+#include <Wire.h>
+#include "Adafruit_VL53L0X.h"
+#include <BMP280.h>
+#include <MLX90393.h>
+#include <Si7006.h>
+#include <VEML6040.h>
+#include <SPU0414HR5H_SB.h>
+#include "SparkFunLSM6DS3.h"
+#include <RGB_LED.h>
+//Beginning of Auto generated function prototypes by Atmel Studio
+//End of Auto generated function prototypes by Atmel Studio
+
+
+
+
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();                    //Distance Sensor (VL53L0X)
+BMP280  PressureSensor;                                       //Pressure Sensor (BMP280)
+MLX90393 HallSensor;                                          //Magnetic Sensor (MLX90393)
+Si7006 TempandHumSensor;                                      //Temperature and Humidity Sensor (Si7006)
+VEML6040 OpticalSensor;                                       //Optical Sensor (VEML6040)
+SPU0414HR5H_SB SoundSensor;                                   //Sound Sensor (SPU0414HR5H_SB)
+LSM6DS3 IMUSensor;                                            //IMU Sensor (LSM6DS3US). Address: 0x6B
+RGB_LED RGB;                                                  //RGB LED
+
+#define Kp 20.0f
+#define Ki 0.01f
+#define halfT 0.005f
+
+float roll;
+float pitch;
+float x_mag,y_mag,z_mag;
+float q0=1.0f, q1=0.0f, q2=0.0f, q3=0.0f;
+float exint=0,eyint=0,ezint=0;
+String x;
+void setup() {
+  Serial1.begin(9600);
+
+  // wait until serial port opens for native USB devices
+  while (! Serial) {
+    delay(1);
+  }
+
+  // Detect the Distance sensor (VL53L0X)
+  if (!lox.begin()) {
+    Serial1.println("Error: VL53L0X not detected");
+  while(1);
+  }
+
+  // Detect the Pressure Sensor (BMP280)
+  if(!PressureSensor.BMP280_scan()){
+    Serial1.println("Error: BMP280 Sensor not detected");
+  while(1){}
+  }
+
+  // Configure the Magnetic Sensor (MLX90393)
+  uint8_t status = HallSensor.MLX90393_begin(0,0);
+
+  // Detect the Temperature and Humidity Sensor (Si7006)
+  if(!TempandHumSensor.Si7006_scan()){
+     Serial1.println("Error: Si7006 Sensor not detected");
+  while(1){}
+  }
+
+  // Configure the Temperature and Humidity Sensor (Si7006)
+  TempandHumSensor.Si7006_configuration(Si7006_MEASURE_REL_HUMIDITY_NO_MASTER_MODE);
+  TempandHumSensor.Si7006_configuration(Si7006_MEASURE_TEMPERATURE_NO_MASTER_MODE);
+  delay(1500);
+
+  // Detect the Optical Sensor (VEML6040)
+  if(!OpticalSensor.VEML6040_scan()){
+     Serial.println("Error: VEML6040 Sensor not detected");
+   while(1){}
+  }
+
+  //Configure the Optical Sensor (VEML6040)
+  OpticalSensor.VEML6040_configuration(VEML6040_AUTO_MODE);
+  OpticalSensor.VEML6040_configuration(VEML6040_SD_DISABLE);
+  OpticalSensor.VEML6040_configuration(VEML6040_IT_160);
+  delay(1500);
+
+  //Configure the IMU Sensor (LSM6DS3US)
+  Serial1.println("Processor came out of reset.\n");
+  if( IMUSensor.begin() != 0 )
+  {
+    Serial1.println("Error: LSM6DS3 not detected");
+  }
+  else
+  {
+    //Serial1.println("IMU Sensor started");
+  }
+
+  //Cycle LED colors
+  RGB.RGB_LED_CYCLE(r,g,b,1000);
+  
+}
+
+void loop() {
+  
+  float gx, gy, gz, ax, ay, az;
+  //Serial1.println("IMU Sensor (LSM6DS3US): ");  
+  //Serial1.println("Accelerometer:");
+  //Serial1.print("X = ");
+  //Serial1.println(IMUSensor.readFloatAccelX(), 4);
+  ax=IMUSensor.readFloatAccelX();
+  //Serial1.print(ax);
+  //Serial1.print("Y = ");
+  //Serial1.println(IMUSensor.readFloatAccelY(), 4);
+  ay=IMUSensor.readFloatAccelY();
+  //Serial1.print("Z = ");
+  //Serial1.println(IMUSensor.readFloatAccelZ(), 4);
+  az=IMUSensor.readFloatAccelZ();
+  //Serial1.println("Gyroscope:");
+  //Serial1.print("X = ");
+  //Serial1.println(IMUSensor.readFloatGyroX(), 4);
+  gx=IMUSensor.readFloatGyroX();
+  //Serial1.print("Y = ");
+  //Serial1.println(IMUSensor.readFloatGyroY(), 4);
+  gy=IMUSensor.readFloatGyroY();
+  //Serial1.print("Z = ");
+  //Serial1.println(IMUSensor.readFloatGyroZ(), 4);
+  gz=IMUSensor.readFloatGyroZ();
+  //Serial1.println("Thermometer:");
+  //Serial1.print("Temperature (*C)= ");
+  //Serial1.println(IMUSensor.readTempC(), 4);
+  //Serial1.print("Temperature (*F)= ");
+  //Serial1.println(IMUSensor.readTempF(), 4);
+  //delay(10);
+  
+
+  
+  float  norm;
+  float  vx,vy,vz;
+  float  ex,ey,ez;
+    
+  
+  // normalise the actual gravitational acceleration component
+  norm = sqrt(ax*ax+ay*ay+az*az);
+  ax= ax /norm;
+  ay= ay /norm;
+  az= az /norm;
+
+  // estimated the direction of gravity acceleration
+  vx=2*(q1*q3-q0*q2);
+  vy=2*(q0*q1+q2*q3);
+  vz=q0*q0-q1*q1-q2*q2+q3*q3;
+
+  // The error is the cross product between the actual and the one measured by the gyoscope
+  ex=(ay*vz-az*vy);
+  ey=(az*vx-ax*vz);
+  ez=(ax*vy-ay*vx);
+	  
+  // integral error scaled integral gain
+  exint=exint+ex*Ki;
+  eyint=eyint+ey*Ki;
+  ezint=ezint+ez*Ki;
+	
+  // add the error to adjusted gyroscope measurements
+  gx=gx+Kp*ex+exint;
+  gy=gy+Kp*ey+eyint;
+  gz=gz+Kp*ez+ezint;
+	  
+  // integrate quaternion
+  q0=q0+(-q1*gx-q2*gy-q3*gz)*halfT;
+  q1=q1+(q0*gx+q2*gz-q3*gy)*halfT;
+  q2=q2+(q0*gy-q1*gz+q3*gx)*halfT;
+  q3=q3+(q0*gz+q1*gy-q2*gx)*halfT;
+  // normalise quaternion
+  norm=sqrt(q0*q0+q1*q1+q2*q2+q3*q3);
+  q0=q0/norm;
+  q1=q1/norm;
+  q2=q2/norm;
+  q3=q3/norm;
+	  
+  roll=atan2(2 * q2 * q3 + 2 * q0 * q1, -2 * q1 * q1 - 2 * q2* q2 + 1)*57.2957795f;
+  pitch=asin(-2 * q1 * q3 + 2 * q0* q2)*57.2957795f;
+  
+  //The real-time line chart by python
+  Serial1.print(roll);
+  Serial1.print(" , ");
+  Serial1.print(pitch);
+  
+  
+  //The 3D simulation by blender
+  //Serial1.print("x");
+  //
+  //if(!(roll<0))
+	//Serial1.print("+");
+  //Serial1.print(roll);
+  //Serial1.print(";");
+  //
+  //Serial1.print("y");
+  //
+  //if(!(pitch<0))
+	//Serial1.print("+");
+  //Serial1.print(pitch);
+  //Serial1.print(";");
+  //
+  //delay(100);
+  
+	  
+	  
+  }
+  
