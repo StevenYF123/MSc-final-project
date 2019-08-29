@@ -1,0 +1,337 @@
+/*Begining of Auto generated code by Atmel studio */
+#include <Arduino.h>
+
+/*End of auto generated code by Atmel studio */
+#This code is based on https://www.cnblogs.com/qsyll0916/p/8030379.html
+
+#include <Wire.h>
+#include "Adafruit_VL53L0X.h"
+#include <BMP280.h>
+#include <MLX90393.h>
+#include <Si7006.h>
+#include <VEML6040.h>
+#include <SPU0414HR5H_SB.h>
+#include "SparkFunLSM6DS3.h"
+#include <RGB_LED.h>
+//Beginning of Auto generated function prototypes by Atmel Studio
+//End of Auto generated function prototypes by Atmel Studio
+
+
+
+
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();                    //Distance Sensor (VL53L0X)
+BMP280  PressureSensor;                                       //Pressure Sensor (BMP280)
+MLX90393 HallSensor;                                          //Magnetic Sensor (MLX90393)
+Si7006 TempandHumSensor;                                      //Temperature and Humidity Sensor (Si7006)
+VEML6040 OpticalSensor;                                       //Optical Sensor (VEML6040)
+SPU0414HR5H_SB SoundSensor;                                   //Sound Sensor (SPU0414HR5H_SB)
+LSM6DS3 IMUSensor;                                            //IMU Sensor (LSM6DS3US). Address: 0x6B
+RGB_LED RGB;                                                  //RGB LED
+
+#define Kp 112.0f
+#define Ki 0.085f
+#define halfT 0.005f
+
+
+
+void setup() {
+	Serial1.begin(9600);
+
+	// wait until serial port opens for native USB devices
+	while (! Serial) {
+		delay(1);
+	}
+
+	// Detect the Distance sensor (VL53L0X)
+	if (!lox.begin()) {
+		Serial1.println("Error: VL53L0X not detected");
+		while(1);
+	}
+
+	// Detect the Pressure Sensor (BMP280)
+	if(!PressureSensor.BMP280_scan()){
+		Serial1.println("Error: BMP280 Sensor not detected");
+		while(1){}
+	}
+
+	// Configure the Magnetic Sensor (MLX90393)
+	uint8_t status = HallSensor.MLX90393_begin(0,0);
+
+	// Detect the Temperature and Humidity Sensor (Si7006)
+	if(!TempandHumSensor.Si7006_scan()){
+		Serial1.println("Error: Si7006 Sensor not detected");
+		while(1){}
+	}
+
+	// Configure the Temperature and Humidity Sensor (Si7006)
+	TempandHumSensor.Si7006_configuration(Si7006_MEASURE_REL_HUMIDITY_NO_MASTER_MODE);
+	TempandHumSensor.Si7006_configuration(Si7006_MEASURE_TEMPERATURE_NO_MASTER_MODE);
+	delay(1500);
+
+	// Detect the Optical Sensor (VEML6040)
+	if(!OpticalSensor.VEML6040_scan()){
+		Serial.println("Error: VEML6040 Sensor not detected");
+		while(1){}
+	}
+
+	//Configure the Optical Sensor (VEML6040)
+	OpticalSensor.VEML6040_configuration(VEML6040_AUTO_MODE);
+	OpticalSensor.VEML6040_configuration(VEML6040_SD_DISABLE);
+	OpticalSensor.VEML6040_configuration(VEML6040_IT_160);
+	delay(1500);
+
+	//Configure the IMU Sensor (LSM6DS3US)
+	Serial1.println("Processor came out of reset.\n");
+	if( IMUSensor.begin() != 0 )
+	{
+		Serial1.println("Error: LSM6DS3 not detected");
+	}
+	else
+	{
+		//Serial1.println("IMU Sensor started");
+	}
+
+	//Cycle LED colors
+	RGB.RGB_LED_CYCLE(cr,cg,cb,1000);
+	
+}
+
+void loop() {
+	
+	//Distance Sensor /(VL53L0X)
+	//Serial1.println("Distance Sensor (VL53L0X): ");
+	//VL53L0X_RangingMeasurementData_t measure;
+	//lox.rangingTest(&measure, false);                           // Start distance measurement (pass in 'true' to get debug data printout!)
+	//if (measure.RangeStatus != 4) {                             // phase failures have incorrect data
+	//Serial1.print("Distance (mm): ");
+	//Serial1.println(measure.RangeMilliMeter);
+	//}
+	//else
+	//{
+	//Serial1.println(" out of range ");
+	//}
+	//delay(500);
+	
+
+	//Pressure Sensor (BMP280)
+	//Serial1.println("Pressure Sensor (BMP280): ");
+	//Serial1.print("Temperature(*C) = ");
+	//Serial1.println(PressureSensor.temperature());
+	//Serial1.print("Pressure(Pa) = ");
+	//Serial1.println(PressureSensor.pressure());
+	//Serial1.print("Altitude(m) = ");
+	//Serial1.println(PressureSensor.altitude(1013.25));
+	//delay(500);
+
+
+	//Magnetic Sensor (MLX90393)
+	//MLX90393::txyz data;
+	//HallSensor.MLX90393_readData(data);                        //Start Magnetic Measurement
+	//Serial1.println("Hall-effect Sensor (MLX90393): ");
+	//x_mag = data.x/1000;
+	//Serial1.print("X Magnetic Field Strength (mT): ");
+	//Serial1.println(x_mag);
+	//y_mag = data.y/1000;
+	//Serial1.print("Y Magnetic Field Strength (mT): ");
+	//Serial1.println(y_mag);
+	//z_mag = data.z/1000;
+	//Serial1.print("Z Magnetic Field Strength (mT): ");
+	//Serial1.println(z_mag);
+	//Serial1.print("Temperature (*C): ");
+	//Serial1.println(data.t);
+	//delay(500);
+
+
+	//Temperature and Humidity Sensor (Si7006)
+	//Serial1.println("Temp and Humidity Sensor (Si7006): ");
+	//Serial1.print("Relative Humidity(%): ");
+	//Serial1.println(TempandHumSensor.humidity());
+	//Serial1.print("Temp(*C): ");
+	//Serial1.println(TempandHumSensor.ctemperature());
+	//Serial1.print("Temp(*F): ");
+	//Serial1.println(TempandHumSensor.ftemperature());
+	//delay(500);
+
+
+	//Optical Sensor (VEML6040)
+	//Serial1.println("Optical Sensor (VEML6040): ");
+	//Serial1.print("CCT(Kelvin): ");
+	//Serial1.println(OpticalSensor.CCT());
+	//Serial1.print("R(microWatt/cm^2): ");
+	//Serial1.println(OpticalSensor.Red_power_density());
+	//Serial1.print("G(microWatt/cm^2): ");
+	//Serial1.println(OpticalSensor.Green_power_density());
+	//Serial1.print("B(microWatt/cm^2): ");
+	//Serial1.println(OpticalSensor.Blue_power_density());
+	//Serial1.print("Ambient Light Intensity(lux): ");
+	//Serial1.println(OpticalSensor.Ambient_Light_Intensity());
+	//delay(500);
+
+
+	//Sound Sensor (SPU0414HR5H_SB)
+	//int val = SoundSensor.read_sound_sensor(sound);
+	//Serial1.println("Sound Sensor (SPU0414HR5H_SB): ");
+	//Serial.print("Sound data: ");
+	//Serial.println(val,DEC);
+	//delay(500);
+
+	//IMU Sensor (LSM6DS3US)
+	float gx, gy, gz, ax, ay, az;
+	//Serial1.println("IMU Sensor (LSM6DS3US): ");
+	//Serial1.println("Accelerometer:");
+	//Serial1.print("X = ");
+	//Serial1.println(IMUSensor.readFloatAccelX(), 4);
+	ax=IMUSensor.readFloatAccelX();
+	//Serial1.print(ax);
+	//Serial1.print("Y = ");
+	//Serial1.println(IMUSensor.readFloatAccelY(), 4);
+	ay=IMUSensor.readFloatAccelY();
+	//Serial1.print("Z = ");
+	//Serial1.println(IMUSensor.readFloatAccelZ(), 4);
+	az=IMUSensor.readFloatAccelZ();
+	//Serial1.println("Gyroscope:");
+	//Serial1.print("X = ");
+	//Serial1.println(IMUSensor.readFloatGyroX(), 4);
+	gx=IMUSensor.readFloatGyroX();
+	//Serial1.print("Y = ");
+	//Serial1.println(IMUSensor.readFloatGyroY(), 4);
+	gy=IMUSensor.readFloatGyroY();
+	//Serial1.print("Z = ");
+	//Serial1.println(IMUSensor.readFloatGyroZ(), 4);
+	gz=IMUSensor.readFloatGyroZ();
+	//Serial1.println("Thermometer:");
+	//Serial1.print("Temperature (*C)= ");
+	//Serial1.println(IMUSensor.readTempC(), 4);
+	//Serial1.print("Temperature (*F)= ");
+	//Serial1.println(IMUSensor.readTempF(), 4);
+	delay(100);
+	
+
+	
+
+    /**********Kalman_Filter *********/
+
+	/* system virables*/
+	float roll=0.0, rollbias=0.0; 
+	/* sample time */
+	float deltaT = 0.001f;
+	/*covirance*/
+	float p[2][2] = {{1,0},{0,1}};
+	/* Kalman gain */
+	float K[2] = {0,
+	              0};
+	/* Diagonal elements of the system state covariance matrix */
+	float Q0 = 0.001f,Q1 = 0.003f; //Q0 means the variance of accelerometer , the bigger Q0, less trust on accelerometer
+	/*System output gaussian noise variance */
+	float R = 0.5f;
+	float Zroll;
+	
+	roll = roll + deltaT*(gx - rollbias);
+	
+	/*
+	Covariance estimate of the error
+	*/
+	p[0][0] = p[0][0] - deltaT*(p[0][1]+p[1][0]) + deltaT*deltaT*p[1][1] + deltaT*Q0;
+	p[0][1] = p[0][1] - deltaT*p[1][1];
+	p[1][0] = p[1][0] - deltaT*p[1][1];
+	p[1][1] = p[1][1] + deltaT*Q1;
+	
+	/*
+	Calculate the Kalman gain
+	*/
+	K[0] = p[0][0]/(p[0][0]+R);
+	K[1] = p[1][0]/(p[0][0]+R);
+	
+	/*
+	Correction of prior covariance estimates
+	*/
+	p[0][0] = p[0][0] - K[0]*p[0][0];
+	p[0][1] = p[0][1] - K[0]*p[0][1];
+	p[1][0] = p[1][0] - K[1]*p[0][0];
+	p[1][1] = p[1][1] - K[1]*p[0][1];
+	
+	Zroll=atan(ay/az);
+	
+	/*
+	Calibration of system state estimates
+	*/
+	roll = roll + K[0]*(Zroll - roll);
+	rollbias = rollbias + K[1]*(Zroll - roll);
+	roll=roll*100;
+	Serial1.print(roll);
+	Serial1.print(" , ");
+	
+	
+			/*System state variable */
+	float pitch=0.0, pitchbias=0.0; 
+	
+	/*Covariance matrix of errors*/
+	float pPitch[2][2] = {{1,0},{0,1}};
+	/* Kalman gain */
+	float Kpitch[2] = {0,
+	                   0};
+
+	float Zpitch;
+	/*
+	Zk tilt Angle instrument or accelerometer measures the angular velocity output of the system Angle Gyro gyroscope
+	X [0] system inclination Angle
+	X [1] gyroscope drift
+	*/
+
+	pitch = pitch + deltaT*(gx - pitchbias);
+	
+	/*
+	Covariance estimate of the error
+	*/
+	
+	pPitch[0][0] = pPitch[0][0] - deltaT*(pPitch[0][1]+pPitch[1][0]) + deltaT*deltaT*p[1][1] + deltaT*Q0;
+	pPitch[0][1] = pPitch[0][1] - deltaT*pPitch[1][1];
+	pPitch[1][0] = pPitch[1][0] - deltaT*pPitch[1][1];
+	pPitch[1][1] = pPitch[1][1] + deltaT*Q1;
+	
+	/*
+	Calculate the Kalman gain
+	*/
+	
+	Kpitch[0] = pPitch[0][0]/(pPitch[0][0]+R);
+	Kpitch[1] = pPitch[1][0]/(pPitch[0][0]+R);
+	
+	Zpitch=asin(-ax);
+	/*
+	Calibration of system state estimates
+	*/
+	
+	pitch = pitch + Kpitch[0]*(Zpitch - pitch);
+	rollbias = rollbias + Kpitch[1]*(Zpitch - pitch);
+	pitch=pitch*100;
+	Serial1.println(pitch);
+	//Serial1.print(" , ");
+	/*
+	Correction of prior covariance estimates
+	*/
+	
+	
+	pPitch[0][0] = pPitch[0][0] - K[0]*pPitch[0][0];
+	pPitch[0][1] = pPitch[0][1] - K[0]*pPitch[0][1];
+	pPitch[1][0] = pPitch[1][0] - K[1]*pPitch[0][0];
+	pPitch[1][1] = pPitch[1][1] - K[1]*pPitch[0][1];
+    
+    //3D simulation by blender
+    //Serial1.print("x");
+  //
+    //if(!(roll<0))
+      //Serial1.print("+");
+    //Serial1.print(roll);
+    //Serial1.print(";");
+  //
+    //Serial1.print("y");
+  //
+    //if(!(pitch<0))
+      //Serial1.print("+");
+    //Serial1.print(pitch);
+    //Serial1.print(";");
+  	
+  
+  
+}
+
